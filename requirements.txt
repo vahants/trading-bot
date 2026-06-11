@@ -1,0 +1,24 @@
+# --- core ---
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+pydantic==2.7.4
+pydantic-settings==2.3.4
+
+# --- data / db ---
+SQLAlchemy==2.0.31
+psycopg2-binary==2.9.9
+redis==5.0.7
+pandas==2.2.2
+numpy==1.26.4
+
+# --- exchange ---
+pybit==5.7.0          # Bybit v5 SDK (REST + WebSocket)
+pycryptodome==3.20.0  # required by pybit for request signing
+
+# --- utils ---
+python-dotenv==1.0.1
+httpx==0.27.0
+tenacity==8.4.2       # retries with backoff
+
+# --- dev / test ---
+pytest==8.2.2
