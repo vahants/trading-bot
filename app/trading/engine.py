@@ -141,6 +141,8 @@ class TradingEngine:
         }
         self.state.trades.append(trade)
         self._record_trade(trade)
+        from app.reporting import journal      # CSV journal (survives restarts)
+        journal.append_trade(trade)
         self._alert(f"CLOSE {symbol} {pos['side'].value} @ {price:.2f} "
                     f"({reason}) PnL {gross:+.2f} "
                     f"[{'LOSS' if is_loss else 'win'}]")

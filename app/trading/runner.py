@@ -82,12 +82,18 @@ def run_loop(poll_seconds: int = 60):
             if not engine.state.running:
                 log.error("Bot stopped: %s", engine.state.halt_reason)
                 break
-            # 3) record equity
+            # 3) record equity (DB if available, always to the CSV journal)
             bal = engine.exchange.get_balance()
+            daily_pnl = bal.equity - engine.state.day_start_equity
             engine.recorder.save_equity(
                 equity=bal.equity, balance=bal.available,
                 open_positions=len(engine.state.open_positions),
-                daily_pnl=bal.equity - engine.state.day_start_equity, drawdown=0.0,
+                daily_pnl=daily_pnl, drawdown=0.0,
+            )
+            from app.reporting import journal
+            journal.append_equity(
+                mode=engine.mode, equity=bal.equity, balance=bal.available,
+                open_positions=len(engine.state.open_positions), daily_pnl=daily_pnl,
             )
         except Exception as e:
             # Transient network hiccups (timeouts, dropped connections) are
