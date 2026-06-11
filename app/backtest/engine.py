@@ -69,10 +69,10 @@ class Backtester:
                 continue  # one position at a time
 
             # ---- look for a new entry ----
-            if self.use_regime_filter:
-                regime = classify(window)
-                if regime not in TRADEABLE.get(self.strategy.family, set()):
-                    continue
+            regime = classify(window)           # always computed (for tagging)
+            if self.use_regime_filter and \
+                    regime not in TRADEABLE.get(self.strategy.family, set()):
+                continue
 
             signal = self.strategy.generate(window)
             if signal is None:
@@ -96,13 +96,14 @@ class Backtester:
                 "stop": signal.stop, "tp": signal.take_profit,
                 "risk_per_unit": signal.risk_per_unit, "entry_fee": entry_fee,
                 "trail_mult": signal.trailing_atr_mult, "atr": signal.meta.get("atr", 0),
+                "regime": regime, "entry_time": bar["open_time"],
             }
 
         metrics: BacktestMetrics = compute_metrics(trades, equity_curve, self.start_equity)
         return {
             "symbol": symbol, "strategy": self.strategy.name,
             "metrics": metrics.as_dict(), "final_equity": equity,
-            "num_trades": len(trades),
+            "num_trades": len(trades), "trades": trades,
         }
 
     # ---- exit logic ----
@@ -143,5 +144,6 @@ class Backtester:
             "exit_price": exit_price, "qty": pos["qty"], "gross_pnl": gross,
             "fees": pos["entry_fee"] + exit_fee, "net_pnl": net,
             "r_multiple": r_mult, "exit_reason": reason,
+            "regime": pos.get("regime"), "entry_time": pos.get("entry_time"),
         }
         return equity, trade
