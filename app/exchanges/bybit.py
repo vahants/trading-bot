@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from app.config import get_settings
 from app.exchanges.base import (
     AbstractExchange, Balance, Candle, OrderRequest, OrderResult, OrderSide,
-    OrderType, PermanentOrderError, SymbolInfo,
+    OrderType, PermanentOrderError, SymbolInfo, TransientExchangeError,
 )
 
 # Bybit kline interval codes (minutes, or D/W).
@@ -60,11 +60,29 @@ class BybitExchange(AbstractExchange):
             )
         return self._client
 
+    def _guard(self, fn, *args, **kwargs):
+        """Run a pybit call, converting rate-limit / SDK quirks into a clean
+        TransientExchangeError the loop can shrug off and retry next cycle."""
+        try:
+            return fn(*args, **kwargs)
+        except KeyError as e:
+            # pybit's own rate-limit handler crashes reading a header that Bybit
+            # didn't send (X-Bapi-Limit-Reset-Timestamp). Treat as transient.
+            raise TransientExchangeError(f"rate-limit/SDK header issue: {e}") from e
+        except Exception as e:
+            code = getattr(e, "status_code", None)
+            text = str(e)
+            if code == 10006 or "10006" in text or "rate limit" in text.lower():
+                raise TransientExchangeError(
+                    f"rate limited: {text.splitlines()[0][:120]}") from e
+            raise
+
     # ---- market data ----
     def get_candles(self, symbol: str, timeframe: str, limit: int = 500) -> list[Candle]:
         interval = _TF_MAP[timeframe]
-        resp = self.client.get_kline(
-            category=self.category, symbol=symbol, interval=interval, limit=limit
+        resp = self._guard(
+            self.client.get_kline,
+            category=self.category, symbol=symbol, interval=interval, limit=limit,
         )
         rows = resp["result"]["list"]  # newest first
         candles = []
@@ -77,13 +95,15 @@ class BybitExchange(AbstractExchange):
         return candles
 
     def get_last_price(self, symbol: str) -> float:
-        resp = self.client.get_tickers(category=self.category, symbol=symbol)
+        resp = self._guard(self.client.get_tickers,
+                           category=self.category, symbol=symbol)
         return float(resp["result"]["list"][0]["lastPrice"])
 
     def get_symbol_info(self, symbol: str) -> SymbolInfo:
         if symbol in self._symbol_cache:
             return self._symbol_cache[symbol]
-        resp = self.client.get_instruments_info(category=self.category, symbol=symbol)
+        resp = self._guard(self.client.get_instruments_info,
+                           category=self.category, symbol=symbol)
         it = resp["result"]["list"][0]
         lot = it["lotSizeFilter"]
         # minNotionalValue is the USD minimum (what we need). minOrderQty is a
@@ -112,7 +132,7 @@ class BybitExchange(AbstractExchange):
 
     # ---- account ----
     def get_balance(self) -> Balance:
-        resp = self.client.get_wallet_balance(accountType="UNIFIED")
+        resp = self._guard(self.client.get_wallet_balance, accountType="UNIFIED")
         acct = resp["result"]["list"][0]
         equity = float(acct.get("totalEquity", 0) or 0)
         available = float(acct.get("totalAvailableBalance", 0) or 0)

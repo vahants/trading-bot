@@ -16,6 +16,7 @@ import logging
 import time
 
 from app.config import get_settings
+from app.exchanges.base import TransientExchangeError
 
 log = logging.getLogger("runner")
 
@@ -97,10 +98,12 @@ def run_loop(poll_seconds: int = 60):
                 mode=engine.mode, equity=bal.equity, balance=bal.available,
                 open_positions=len(engine.state.open_positions), daily_pnl=daily_pnl,
             )
+        except TransientExchangeError as e:
+            # Rate limits / SDK quirks — expected, self-healing. One quiet line.
+            log.warning("exchange busy (%s) — retrying next cycle", e)
         except Exception as e:
-            # Transient network hiccups (timeouts, dropped connections) are
-            # expected — especially on testnet. Log them as a quiet one-liner and
-            # keep going. Only unexpected errors get a full traceback.
+            # Network hiccups (timeouts, dropped connections) are also expected.
+            # Only truly unexpected errors get a full traceback.
             name = type(e).__name__
             if any(k in name for k in ("Timeout", "Connection", "ReadTimeout")):
                 log.warning("network hiccup (%s) — retrying next cycle", name)

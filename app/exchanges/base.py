@@ -32,6 +32,12 @@ class PermanentOrderError(Exception):
     instead of hammering the exchange forever."""
 
 
+class TransientExchangeError(Exception):
+    """A temporary exchange problem that WILL likely resolve on its own — rate
+    limits, momentary 5xx, or SDK quirks handling them. The loop logs a quiet
+    one-liner and simply tries again next cycle."""
+
+
 @dataclass
 class Candle:
     open_time: datetime
