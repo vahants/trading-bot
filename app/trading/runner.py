@@ -49,7 +49,9 @@ def build_engine(starting_equity: float = 10_000.0):
         data_source = None
         try:
             from app.exchanges.bybit import BybitExchange
-            data_source = BybitExchange()  # read-only market data for paper
+            # Paper uses REAL mainnet market data (public, no key) for realistic
+            # prices — testnet data is thin/erratic and pollutes paper results.
+            data_source = BybitExchange(testnet=False)
         except Exception as e:
             log.warning("No Bybit data source (%s) — inject candles manually.", e)
         exchange = PaperExchange(data_source=data_source, starting_equity=starting_equity)

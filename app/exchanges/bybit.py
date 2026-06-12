@@ -33,9 +33,12 @@ _PERMANENT_HINTS = ("10024", "regulatory", "10005", "permission denied",
 class BybitExchange(AbstractExchange):
     name = "bybit"
 
-    def __init__(self):
+    def __init__(self, testnet: bool | None = None):
+        # `testnet=None` follows config. Pass testnet=False to read REAL mainnet
+        # market data (public, no key) — used by paper mode for realistic prices.
         self.cfg = get_settings()
         self.category = self.cfg.bybit_category
+        self._testnet = self.cfg.bybit_testnet if testnet is None else testnet
         self._client = None  # lazy
         self._symbol_cache: dict[str, SymbolInfo] = {}
 
@@ -46,7 +49,7 @@ class BybitExchange(AbstractExchange):
             from pybit.unified_trading import HTTP  # imported only when needed
 
             self._client = HTTP(
-                testnet=self.cfg.bybit_testnet,
+                testnet=self._testnet,
                 api_key=self.cfg.bybit_api_key,
                 api_secret=self.cfg.bybit_api_secret,
                 timeout=30,          # testnet is slow; 10s default times out
