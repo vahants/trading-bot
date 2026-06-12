@@ -41,6 +41,10 @@ class BybitExchange(AbstractExchange):
         self._testnet = self.cfg.bybit_testnet if testnet is None else testnet
         self._client = None  # lazy
         self._symbol_cache: dict[str, SymbolInfo] = {}
+        # Short candle cache cuts repeated /market/kline calls (rate-limit relief).
+        # 90s is fine for a 15m+ strategy; exits still use the live ticker price.
+        self._candle_cache: dict = {}
+        self._candle_ttl = 90.0
 
     # ---- lazy client so the package imports without pybit / keys ----
     @property
@@ -79,6 +83,10 @@ class BybitExchange(AbstractExchange):
 
     # ---- market data ----
     def get_candles(self, symbol: str, timeframe: str, limit: int = 500) -> list[Candle]:
+        key = (symbol, timeframe, limit)
+        hit = self._candle_cache.get(key)
+        if hit and (time.monotonic() - hit[0]) < self._candle_ttl:
+            return hit[1]
         interval = _TF_MAP[timeframe]
         resp = self._guard(
             self.client.get_kline,
@@ -92,6 +100,7 @@ class BybitExchange(AbstractExchange):
                 open=float(r[1]), high=float(r[2]), low=float(r[3]),
                 close=float(r[4]), volume=float(r[5]),
             ))
+        self._candle_cache[key] = (time.monotonic(), candles)
         return candles
 
     def get_last_price(self, symbol: str) -> float:

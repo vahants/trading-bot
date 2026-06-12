@@ -20,6 +20,10 @@ from app.exchanges.base import TransientExchangeError
 
 log = logging.getLogger("runner")
 
+# We handle rate-limits/timeouts ourselves, so silence pybit's own noisy
+# ERROR lines for them — our calm WARNING is the single source of truth.
+logging.getLogger("pybit._http_manager").setLevel(logging.CRITICAL)
+
 _TF_MAP = {5: "5m", 15: "15m", 60: "1h", 240: "4h", 1440: "1d"}
 
 
