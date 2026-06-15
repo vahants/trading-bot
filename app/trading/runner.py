@@ -33,7 +33,7 @@ def build_engine(starting_equity: float = 10_000.0):
     tf = _TF_MAP.get(cfg.base_timeframe, "1h")
 
     from app.trading.engine import TradingEngine
-    from app.strategies.ema_rsi import EmaRsiStrategy
+    from app.strategies import registry
     from app.db.recorder import Recorder
     from app.alerts.telegram import TelegramNotifier
 
@@ -61,8 +61,10 @@ def build_engine(starting_equity: float = 10_000.0):
             log.warning("No Bybit data source (%s) — inject candles manually.", e)
         exchange = PaperExchange(data_source=data_source, starting_equity=starting_equity)
 
+    strategy = registry.build(cfg.strategy)
+    log.info("Strategy: %s", strategy.name)
     engine = TradingEngine(
-        exchange=exchange, strategy=EmaRsiStrategy(), timeframe=tf,
+        exchange=exchange, strategy=strategy, timeframe=tf,
         recorder=recorder, notifier=notifier, settings=cfg,
     )
     return engine, cfg

@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     symbols: str = "BTCUSDT,ETHUSDT"
     base_timeframe: int = 60  # minutes
     min_ai_score: int = 55
+    strategy: str = "ema_rsi"  # which strategy the bot runs (see registry)
 
     # --- fees / slippage assumptions for paper + backtest ---
     taker_fee_bps: float = 5.5   # Bybit perp taker ~0.055%

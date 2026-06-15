@@ -142,7 +142,13 @@ something significant) and commit it, so the history travels with the code.
 4. Restart-safe position reconciliation (adopt open exchange positions on startup).
 5. Web dashboard on top of the existing API endpoints.
 6. Telegram/daily summary alerts; VPS deploy guide; 24/7 hardening.
-7. More strategies (mean-reversion, breakout) + portfolio-level risk.
+7. More strategies — DONE: registry with `ema_rsi`, `donchian` (breakout), `bb_meanrev`
+   (range mean-reversion). Pick via `STRATEGY=` in .env (the bot runs it) and test any
+   with `python scripts/validate.py --csv <file> --strategy <name|all>`. `all` prints a
+   comparison table. Add new ones in `app/strategies/registry.py`. Still TODO: portfolio-
+   level risk across symbols.
+   NOTE (2026-06-13): `ema_rsi` validated NO EDGE on BTC 1h (OOS PF 0.77). Test the new
+   strategies and higher timeframes (backfill --timeframe 4h) before trusting anything.
 
 ---
 
