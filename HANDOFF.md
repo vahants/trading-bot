@@ -64,8 +64,10 @@ Stack & entry points:
 - 🔜 The included EMA+RSI strategy is an **unvalidated baseline**. Its real edge after
   fees is unproven — that's what backtesting + paper trading are for.
 
-**To run right now:** set `MODE=paper` in `.env`, then `python run.py`.
-**To see results:** `python scripts/report.py` (or `--days 10`).
+**To run right now:** set `MODE=paper` in `.env`, then `python run.py` (one strategy,
+chosen by `STRATEGY=` in .env). **Or run ALL strategies in parallel:** `python run_multi.py`
+(paper shootout, one sim account each). **See results:** `python scripts/report.py`
+(single) or `python scripts/report.py --compare` (per-strategy scoreboard).
 
 ---
 

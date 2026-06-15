@@ -38,9 +38,40 @@ def _f(v, default=0.0):
         return default
 
 
+def _compare(trades):
+    """Per-strategy scoreboard — used after a multi-strategy shootout."""
+    by = defaultdict(list)
+    for t in trades:
+        by[t.get("strategy") or "?"].append(t)
+    L = ["=" * 64, "  STRATEGY COMPARISON (journaled paper trades)", "=" * 64]
+    L.append(f"  {'strategy':16}{'trades':>7}{'win%':>7}{'net_pnl':>11}"
+             f"{'PF':>7}{'exp_R':>8}")
+    rows = []
+    for name, ts in by.items():
+        pnls = [_f(t["net_pnl"]) for t in ts]
+        rs = [_f(t.get("r_multiple"), None) for t in ts if t.get("r_multiple")]
+        wins = [p for p in pnls if p > 0]
+        gross_w = sum(p for p in pnls if p > 0)
+        gross_l = -sum(p for p in pnls if p < 0)
+        pf = (gross_w / gross_l) if gross_l > 0 else float("inf")
+        exp_r = (sum(rs) / len(rs)) if rs else 0.0
+        rows.append((sum(pnls), name, len(ts), len(wins) / len(ts) * 100, sum(pnls),
+                     pf, exp_r))
+    for _, name, n, win, net, pf, exp_r in sorted(rows, reverse=True):
+        pf_s = "inf" if pf == float("inf") else f"{pf:.2f}"
+        L.append(f"  {name:16}{n:>7}{win:>6.0f}%{net:>+11.2f}{pf_s:>7}{exp_r:>+8.3f}")
+    L.append("=" * 64)
+    L.append("  Ranked by net PnL. Remember: a few days of paper is a tiny sample —")
+    L.append("  judge on the walk-forward validation, not a short live lead.")
+    return "\n".join(L)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--days", type=int, default=None, help="only the last N days")
+    p.add_argument("--strategy", default=None, help="only this strategy's trades")
+    p.add_argument("--compare", action="store_true",
+                   help="per-strategy scoreboard (for the multi-strategy shootout)")
     p.add_argument("--md", default=None, help="also write a markdown report here")
     args = p.parse_args()
 
@@ -53,6 +84,16 @@ def main():
                   _parse(t["close_ts"]) >= cutoff]
         equity_rows = [e for e in equity_rows if _parse(e.get("ts")) and
                        _parse(e["ts"]) >= cutoff]
+
+    if args.compare:
+        if not trades:
+            print("No closed trades journaled yet.")
+            return
+        print(_compare(trades))
+        return
+
+    if args.strategy:
+        trades = [t for t in trades if (t.get("strategy") or "") == args.strategy]
 
     if not trades:
         print("No closed trades journaled yet.")

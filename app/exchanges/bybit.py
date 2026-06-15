@@ -45,6 +45,9 @@ class BybitExchange(AbstractExchange):
         # 90s is fine for a 15m+ strategy; exits still use the live ticker price.
         self._candle_cache: dict = {}
         self._candle_ttl = 90.0
+        # Tiny price cache dedups ticker calls when many strategies share this feed.
+        self._price_cache: dict = {}
+        self._price_ttl = 8.0
 
     # ---- lazy client so the package imports without pybit / keys ----
     @property
@@ -104,9 +107,14 @@ class BybitExchange(AbstractExchange):
         return candles
 
     def get_last_price(self, symbol: str) -> float:
+        hit = self._price_cache.get(symbol)
+        if hit and (time.monotonic() - hit[0]) < self._price_ttl:
+            return hit[1]
         resp = self._guard(self.client.get_tickers,
                            category=self.category, symbol=symbol)
-        return float(resp["result"]["list"][0]["lastPrice"])
+        price = float(resp["result"]["list"][0]["lastPrice"])
+        self._price_cache[symbol] = (time.monotonic(), price)
+        return price
 
     def get_symbol_info(self, symbol: str) -> SymbolInfo:
         if symbol in self._symbol_cache:
